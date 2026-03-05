@@ -7,7 +7,7 @@ const char* ssid     = "";
 const char* password = "";
 
 // ✅ IP اللابتوب اللي عليه السيرفر
-const char* SERVER_URL = "http://192.168.1.109:3000/api/ingest";
+const char* SERVER_URL = "";
 
 // ========= Pins (حسب توصيلك) =========
 #define FLAME_DO   26
