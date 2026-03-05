@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard - CFL-Eye</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div style="display:flex; justify-content:space-between; align-items:center; padding:20px 30px;">
+    <div>
+      <h2 style="margin:0;">🛡️ CFL-Eye Admin Dashboard</h2>
+      <div id="systemStatus" style="font-weight:bold;">System: OK</div>
+    </div>
+
+    <div>
+      <button id="pauseBtn">⏸ Pause</button>
+      <button id="alertBtn">🚨 Test Alert</button>
+      <button id="exportBtn">📄 Export Logs</button>
+      <button id="reportBtn">📘 Reports</button>
+      <button id="logoutBtn">🚪 Logout</button>
+    </div>
+  </div>
+
+  <div style="padding:0 30px 20px; display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px;">
+    <div class="sensor" id="humidity">
+      <div style="color:#90e0ef; font-size:18px;">Humidity</div>
+      <div><span id="humVal">0</span></div>
+      <div class="status-normal">Normal</div>
+    </div>
+
+    <div class="sensor" id="temp">
+      <div style="color:#90e0ef; font-size:18px;">Temperature</div>
+      <div><span id="tempVal">0</span></div>
+      <div class="status-normal">Normal</div>
+    </div>
+
+    <div class="sensor" id="gas">
+      <div style="color:#90e0ef; font-size:18px;">Gas Level</div>
+      <div><span id="gasVal">0</span></div>
+      <div class="status-normal">Normal</div>
+    </div>
+
+    <div class="sensor" id="fire">
+      <div style="color:#90e0ef; font-size:18px;">Fire Sensor</div>
+      <div><span id="fireVal">0</span></div>
+      <div class="status-normal">Normal</div>
+    </div>
+
+    <div class="sensor" id="door">
+      <div style="color:#90e0ef; font-size:18px;">Lab Door</div>
+      <div><span id="doorVal">0</span></div>
+      <div class="status-normal">Normal</div>
+    </div>
+
+    <div class="sensor" id="locker">
+      <div style="color:#90e0ef; font-size:18px;">Evidence Locker</div>
+      <div><span id="lockerVal">0</span></div>
+      <div class="status-normal">Normal</div>
+    </div>
+  </div>
+
+  <div style="padding:0 30px 40px;">
+    <h3 style="margin-top:0;">📜 Logs</h3>
+    <div id="logContainer" class="log-box"></div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      let paused = false;
+
+      const logContainer = document.getElementById("logContainer");
+      const systemStatus = document.getElementById("systemStatus");
+
+      const TH = { gasWarning: 500, gasAlert: 800, tempWarning: 35, tempAlert: 50 };
+
+      function normalizeName(name) {
+        const n = (name || "").toLowerCase().trim();
+        if (n === "gas") return "Gas Level";
+        if (n === "temperature") return "Temperature";
+        if (n === "humidity") return "Humidity";
+        return name || "Unknown";
+      }
+
+      function addLog(message, type = "info") {
+        if (!logContainer) return;
+        const entry = document.createElement("div");
+        entry.classList.add("log-entry", `log-${type}`);
+        entry.innerHTML = `${message} <span>${new Date().toLocaleTimeString()}</span>`;
+        logContainer.prepend(entry);
+      }
+
+      function setSystemStatus(level) {
+        if (!systemStatus) return;
+        if (level === "OK") { systemStatus.textContent = "System: OK"; systemStatus.style.color = "#06d6a0"; }
+        else if (level === "WARNING") { systemStatus.textContent = "System: WARNING"; systemStatus.style.color = "#ffd166"; }
+        else { systemStatus.textContent = "System: ALERT"; systemStatus.style.color = "#ef476f"; }
+      }
+
+      function computeStatus(rawName, value) {
+        const name = normalizeName(rawName);
+        const v = (value ?? "").toString().trim();
+
+        if (name === "Gas Level") {
+          const n = Number(v);
+          if (isNaN(n)) return "Normal";
+          if (n >= TH.gasAlert) return "Alert";
+          if (n >= TH.gasWarning) return "Warning";
+          return "Normal";
+        }
+
+        if (name === "Temperature") {
+          const n = Number(v);
+          if (isNaN(n)) return "Normal";
+          if (n >= TH.tempAlert) return "Alert";
+          if (n >= TH.tempWarning) return "Warning";
+          return "Normal";
+        }
+
+        return "Normal";
+      }
+
+      function updateCard(cardId, valId, newValue, statusText) {
+        const valEl = document.getElementById(valId);
+        const cardEl = document.getElementById(cardId);
+        if (!valEl || !cardEl) return;
+
+        valEl.textContent = newValue;
+
+        const statusEl = cardEl.querySelector("div:last-child");
+        if (!statusEl) return;
+
+        statusEl.textContent = statusText;
+        statusEl.className =
+          statusText === "Normal" ? "status-normal" :
+          statusText === "Warning" ? "status-warning" :
+          "status-alert";
+      }
+
+      function updateSensors() {
+        if (paused) return;
+
+        fetch(`${window.location.origin}/api/sensors`)
+          .then(res => res.json())
+          .then(data => {
+            let systemLevel = "OK";
+
+            (data || []).forEach(sensor => {
+              const name = normalizeName(sensor.name);
+              const value = sensor.value;
+
+              const status = computeStatus(name, value);
+
+              if (status === "Alert") systemLevel = "ALERT";
+              else if (status === "Warning" && systemLevel !== "ALERT") systemLevel = "WARNING";
+
+              if (name === "Humidity") updateCard("humidity", "humVal", value, status);
+              if (name === "Temperature") updateCard("temp", "tempVal", value, status);
+              if (name === "Gas Level") updateCard("gas", "gasVal", value, status);
+            });
+
+            setSystemStatus(systemLevel);
+          })
+          .catch(err => {
+            console.error(err);
+            addLog("❌ Failed to fetch sensor data from server", "alert");
+            setSystemStatus("ALERT");
+          });
+      }
+
+      document.getElementById("pauseBtn").onclick = () => { paused = !paused; addLog(paused ? "⏸ Updates paused" : "▶ Updates resumed"); };
+      document.getElementById("alertBtn").onclick = () => { addLog("🚨 Manual test alert triggered!", "alert"); setSystemStatus("ALERT"); };
+      document.getElementById("exportBtn").onclick = () => {
+        const data = Array.from(document.querySelectorAll(".log-entry")).map(e => e.textContent);
+        const blob = new Blob([data.join("\n")], { type: "text/plain" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "CFL-Eye_Logs.txt";
+        a.click();
+      };
+      document.getElementById("reportBtn").onclick = () => (window.location.href = "reports.html");
+      document.getElementById("logoutBtn").onclick = () => (window.location.href = "index.html");
+
+      updateSensors();
+      setInterval(updateSensors, 5000);
+    });
+  </script>
+
+</body>
+</html>

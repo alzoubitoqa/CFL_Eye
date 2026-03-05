@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CFL-Eye</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="login-page">
+
+  <div class="login-container">
+    <div class="logo">
+      <img src="https://cdn-icons-png.flaticon.com/512/54/54481.png" alt="lens" class="icon" />
+    </div>
+
+    <h1>CFL-Eye</h1>
+
+    <form id="loginForm" autocomplete="on">
+      <input type="text" id="username" placeholder="Username" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <button type="submit" id="loginBtn">Sign In</button>
+
+      <p><a href="admin.html">Admin Login</a></p>
+      <p id="errorMsg" style="color:red; margin-top:10px;"></p>
+    </form>
+  </div>
+
+  <p id="message" class="top-message"></p>
+
+  <script>
+    const apiBase = window.location.origin; // ✅ يشتغل حتى لو تغير البورت
+
+    const form = document.getElementById("loginForm");
+    const errorMsg = document.getElementById("errorMsg");
+    const loginBtn = document.getElementById("loginBtn");
+
+    function setError(msg) {
+      errorMsg.textContent = msg || "";
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      setError("");
+
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      if (!username || !password) {
+        setError("Please enter username and password.");
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = "Signing in...";
+
+      try {
+        const res = await fetch(`${apiBase}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password })
+        });
+
+        if (!res.ok) {
+          setError("Server error. Please try again.");
+          return;
+        }
+
+        const data = await res.json().catch(() => null);
+
+        if (!data) {
+          setError("Invalid server response.");
+          return;
+        }
+
+        if (data.success) {
+          // ✅ توجيه حسب الدور
+          if (data.role === "admin") {
+            window.location.href = "cfl-eye-dashboard.html";
+          } else {
+            // user (أو أي role ثاني)
+            window.location.href = "dashboard.html";
+          }
+        } else {
+          setError("Invalid username or password.");
+        }
+
+      } catch (err) {
+        setError("Server connection error. Make sure the server is running.");
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Sign In";
+      }
+    });
+  </script>
+
+</body>
+</html>

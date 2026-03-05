@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Dashboard - CFL-Eye</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div style="display:flex; justify-content:space-between; align-items:center; padding:20px 30px;">
+    <h2 style="margin:0;">👁️ CFL-Eye Dashboard</h2>
+    <div>
+      <a href="reports.html" style="margin-right:12px;">Reports</a>
+      <a href="index.html">Logout</a>
+    </div>
+  </div>
+
+  <!-- لازم يكون موجود -->
+  <div id="sensorContainer" style="padding: 0 30px 40px;"></div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const sensorContainer = document.getElementById("sensorContainer");
+      if (!sensorContainer) return;
+
+      const TH = {
+        gasWarning: 500,
+        gasAlert: 800,
+        tempWarning: 35,
+        tempAlert: 50
+      };
+
+      function normalizeName(name) {
+        const n = (name || "").toLowerCase().trim();
+        if (n === "gas") return "Gas Level";
+        if (n === "temperature") return "Temperature";
+        if (n === "humidity") return "Humidity";
+        return name || "Unknown";
+      }
+
+      function computeStatus(rawName, value) {
+        const name = normalizeName(rawName);
+        const v = (value ?? "").toString().trim();
+
+        if (name === "Gas Level") {
+          const n = Number(v);
+          if (isNaN(n)) return "Normal";
+          if (n >= TH.gasAlert) return "Alert";
+          if (n >= TH.gasWarning) return "Warning";
+          return "Normal";
+        }
+
+        if (name === "Temperature") {
+          const n = Number(v);
+          if (isNaN(n)) return "Normal";
+          if (n >= TH.tempAlert) return "Alert";
+          if (n >= TH.tempWarning) return "Warning";
+          return "Normal";
+        }
+
+        return "Normal";
+      }
+
+      function statusColor(status) {
+        if (status === "Alert") return "#ef476f";
+        if (status === "Warning") return "#ffd166";
+        return "#06d6a0";
+      }
+
+      function updateUserSensors() {
+        fetch(`${window.location.origin}/api/sensors`)
+          .then(res => res.json())
+          .then(data => {
+            sensorContainer.innerHTML = "";
+
+            (data || []).forEach(sensor => {
+              const displayName = normalizeName(sensor.name);
+              const status = computeStatus(sensor.name, sensor.value);
+
+              const div = document.createElement("div");
+              div.className = "sensor";
+              div.innerHTML = `
+                <div style="font-size:18px; color:#90e0ef; margin-bottom:8px;">${displayName}</div>
+                <div><span style="color:${statusColor(status)}; font-size:22px;">${sensor.value}</span></div>
+                <div style="margin-top:10px; color:${statusColor(status)}; font-weight:bold;">${status}</div>
+              `;
+              sensorContainer.appendChild(div);
+            });
+          })
+          .catch(err => console.error(err));
+      }
+
+      updateUserSensors();
+      setInterval(updateUserSensors, 5000);
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sensor Reports</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <header>
+    <h1>📘 Sensor Reports</h1>
+    <nav>
+      <a href="dashboard.html">Dashboard</a> |
+      <a href="index.html">Logout</a>
+    </nav>
+  </header>
+
+  <main>
+    <table class="report-table">
+      <thead>
+        <tr><th>Sensor</th><th>Last Value</th><th>Status</th></tr>
+      </thead>
+      <tbody id="reportBody">
+        <tr><td colspan="3">Loading...</td></tr>
+      </tbody>
+    </table>
+  </main>
+
+  <script>
+    const reportBody = document.getElementById("reportBody");
+
+    // Thresholds (عدّليها حسب مشروعك)
+    const TH = {
+      gasWarning: 500,
+      gasAlert: 800,
+      tempWarning: 35,
+      tempAlert: 50
+    };
+
+    function computeStatus(name, value) {
+      const v = (value ?? "").toString().trim();
+
+      if (name === "Gas Level") {
+        const n = Number(v);
+        if (isNaN(n)) return "Normal";
+        if (n >= TH.gasAlert) return "Alert";
+        if (n >= TH.gasWarning) return "Warning";
+        return "Normal";
+      }
+
+      if (name === "Temperature") {
+        const n = Number(v);
+        if (isNaN(n)) return "Normal";
+        if (n >= TH.tempAlert) return "Alert";
+        if (n >= TH.tempWarning) return "Warning";
+        return "Normal";
+      }
+
+      if (name === "Fire Sensor") {
+        if (v.toUpperCase().includes("FIRE") || v === "1" || v === "Detected") return "Alert";
+        return "Normal";
+      }
+
+      if (name === "Lab Door") {
+        if (v.toLowerCase() === "open" || v === "1") return "Warning";
+        return "Normal";
+      }
+
+      return "Normal";
+    }
+
+    function statusColor(status) {
+      if (status === "Alert") return "#ef476f";
+      if (status === "Warning") return "#ffd166";
+      return "#06d6a0";
+    }
+
+    function loadReports() {
+      fetch(`${window.location.origin}/api/sensors`)
+        .then(res => res.json())
+        .then(data => {
+          reportBody.innerHTML = "";
+
+          data.forEach(sensor => {
+            const status = computeStatus(sensor.name, sensor.value);
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${sensor.name}</td>
+              <td>${sensor.value}</td>
+              <td style="font-weight:bold; color:${statusColor(status)}">${status}</td>
+            `;
+            reportBody.appendChild(tr);
+          });
+
+          if (data.length === 0) {
+            reportBody.innerHTML = `<tr><td colspan="3">No sensor data found.</td></tr>`;
+          }
+        })
+        .catch(() => {
+          reportBody.innerHTML = `<tr><td colspan="3">Error loading reports.</td></tr>`;
+        });
+    }
+
+    loadReports();
+    setInterval(loadReports, 5000); // تحديث كل 5 ثواني (اختياري)
+  </script>
+</body>
+</html>
