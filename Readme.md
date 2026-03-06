@@ -1,119 +1,208 @@
-0) Project Overview (كيف النظام شغال)
+🛡️ CFL-Eye — Smart Forensic Lab Monitoring System (Full README)
 
-Sensors → ESP32 → Backend API → MySQL → Website Dashboard (Live)
+CFL-Eye is an IoT + Web system that monitors a Digital Forensics Laboratory using sensors connected to ESP32, sends readings to a Node.js/Express backend, stores them in MySQL, and visualizes everything in a local web dashboard (Admin/User + Reports).
+This README covers everything from zero to the final working live demo, including all commands we used.
 
-ESP32 يقرأ:
+✅ Table of Contents
 
-DHT11 (Temperature / Humidity)
+Project Summary
 
-MQ-2 (Gas Analog)
+System Architecture
 
-Flame Sensor (Digital)
+Features
 
-IR Sensor (Digital)
+Tech Stack
 
-ESP32 يرسل القراءات إلى السيرفر:
+Requirements (Software & Hardware)
 
-POST /api/ingest
+Project Folder Structure
 
-السيرفر يخزّن/يحدّث القراءات في MySQL داخل جدول:
+Backend Setup (Node.js + Express) — From Scratch
 
-sensors
+Database Setup (MySQL/phpMyAdmin) — From Scratch
 
-الموقع يسحب البيانات من:
+API Endpoints
 
-GET /api/sensors
-ويعرضها مباشرة بالداشبورد (كل 5 ثواني).
+Frontend Setup (Website in /public)
 
-1) Project Folder Structure (ترتيب الملفات النهائي)
+ESP32 Setup (Arduino IDE) — From Scratch
 
-لازم هيك:
+Wiring Guide (Sensors + ESP32)
 
+Networking (The Router Isolation Problem) + Hotspot Fix
+
+Windows Firewall Rules (Port 3000)
+
+Validation & Testing Checklist
+
+Troubleshooting (Most common errors)
+
+Demo Script (Doctor Presentation)
+
+Commands Summary (All commands in one place)
+
+1) 📌 Project Summary
+
+Problem: Digital forensic labs contain sensitive devices/evidence and require continuous monitoring for safety and security risks.
+Solution: CFL-Eye monitors:
+
+Gas/smoke leakage
+
+Fire/flame
+
+Temperature & humidity
+
+Intrusion (IR movement)
+and displays the situation on a web dashboard with Normal/Warning/Alert statuses.
+
+2) 🧠 System Architecture
+
+Data Flow:
+
+Sensors → ESP32 → POST /api/ingest → MySQL → GET /api/sensors → Website Dashboard
+
+Main Components:
+
+ESP32 reads sensors
+
+Backend receives readings, computes status, updates database
+
+Web dashboard fetches readings every few seconds and displays them live
+
+3) ✨ Features
+Admin Dashboard
+
+Live sensor cards
+
+System state (OK / WARNING / ALERT)
+
+Logs export
+
+Reports page
+
+Human-friendly values:
+
+Fire: Safe / FIRE DETECTED
+
+IR: Area Clear / INTRUSION
+
+Units: °C / % / ppm
+
+User Dashboard
+
+Simplified live sensor values + status
+
+Backend
+
+Login API for user/admin
+
+Ingest API for ESP32
+
+Sensors API for dashboards
+
+Works on laptop-only demo (local web)
+
+4) 🧰 Tech Stack
+
+Hardware: ESP32 + DHT11 + MQ-2 + Flame + IR + LEDs + Buzzer
+Backend: Node.js, Express, MySQL2, CORS
+Database: MySQL (via XAMPP/phpMyAdmin)
+Frontend: HTML/CSS/JS (Fetch API)
+
+5) ✅ Requirements
+Software
+
+Node.js (LTS recommended)
+
+XAMPP (MySQL + phpMyAdmin)
+
+Arduino IDE
+
+ESP32 board package in Arduino IDE
+
+ESP32 USB driver (CP210x or CH340)
+
+Arduino Libraries
+
+DHT sensor library (Adafruit)
+
+Adafruit Unified Sensor
+
+Hardware
+
+ESP32 Dev board
+
+DHT11
+
+MQ-2 (Analog output AO)
+
+Flame sensor (Digital DO)
+
+IR sensor (Digital DO)
+
+LEDs + 220Ω resistors
+
+(Optional) passive buzzer
+
+6) 📁 Project Folder Structure (Final)
 project-folder/
 │
 ├── server.js
 ├── package.json
 ├── package-lock.json
 │
-├── public/
-│   ├── index.html
-│   ├── admin.html
-│   ├── dashboard.html
-│   ├── cfl-eye-dashboard.html
-│   ├── reports.html
-│   ├── style.css
-│   └── script.js
-│
-└── (اختياري: مجلدات الاختبار)
-    ├── test_leds/
-    ├── test_buzzer/
-    └── testing_esp32/
+└── public/
+    ├── index.html
+    ├── admin.html
+    ├── dashboard.html
+    ├── cfl-eye-dashboard.html
+    ├── reports.html
+    ├── style.css
+    └── script.js
 
-✅ مهم: لا تفتحي HTML من الملفات مباشرة (file://)
-افتحي دومًا من السيرفر:
+✅ Always run website from server:
 
 http://localhost:3000
 
-2) البرامج المطلوبة على اللابتوب
-A) Node.js
+❌ Don’t open HTML using file explorer (file://...)
 
-تثبيت Node.js (يفضل LTS)
-تحقق:
+7) 🚀 Backend Setup (Node.js + Express) — From Scratch
+7.1 Install Node.js
+
+Check versions:
 
 node -v
 npm -v
-B) MySQL (XAMPP)
-
-تثبيت XAMPP وتشغيل:
-
-Apache
-
-MySQL
-
-فتح phpMyAdmin:
-
-http://localhost/phpmyadmin
-
-C) Arduino IDE + ESP32
-
-Arduino IDE
-
-ESP32 Board Package
-
-Driver للـ ESP32 (CP210x أو CH340)
-
-3) Backend Setup (Node.js + Express)
-تثبيت الحزم
-
-داخل مجلد المشروع:
-
-npm install
-
-إذا بدأتي من الصفر:
-
+7.2 Create project folder
+mkdir CFL-Eye
+cd CFL-Eye
+7.3 Initialize + Install dependencies
 npm init -y
 npm install express mysql2 cors
-تشغيل السيرفر
+7.4 Run server
 node server.js
 
-لازم يطلع:
+Expected:
 
 ✅ Connected to MySQL DB
 
-🚀 Server running on http://localhost:3000
+Server running on port 3000
 
-4) Database Setup (MySQL / phpMyAdmin)
-A) اسم قاعدة البيانات
+8) 🗄️ Database Setup (MySQL/phpMyAdmin) — From Scratch
+8.1 Start XAMPP
 
-CFL_Eye
+Start Apache
 
-B) جدول users (للـ Login)
+Start MySQL
 
-السيرفر يستخدم:
+Open:
 
-SELECT role FROM users WHERE username=? AND password=? LIMIT 1
+http://localhost/phpmyadmin
 
-مثال إنشاء:
+8.2 Create database
+CREATE DATABASE CFL_Eye;
+8.3 Create users table (Login)
+USE CFL_Eye;
 
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -122,50 +211,22 @@ CREATE TABLE IF NOT EXISTS users (
   role VARCHAR(20)
 );
 
-إضافة مستخدمين:
+Insert demo users:
 
 INSERT INTO users (username, password, role) VALUES
 ('admin', '1234', 'admin'),
 ('user',  '1234', 'user');
-C) جدول sensors (للقيم)
-
-المطلوب أعمدة:
-
-id
-
-name
-
-value
-
-status
-
-مثال:
-
+8.4 Create sensors table
 CREATE TABLE IF NOT EXISTS sensors (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(50),
   value VARCHAR(50),
   status VARCHAR(20) DEFAULT 'Normal'
 );
-D) إضافة عمود status (إذا ناقص)
-
-phpMyAdmin → sensors → SQL:
-
-ALTER TABLE sensors
-ADD COLUMN status VARCHAR(20) DEFAULT 'Normal';
-
-إذا ظهر:
-
-Duplicate column name 'status'
-يعني موجود ✅
-
-E) جعل name UNIQUE (مهم جدًا)
-
-عشان ON DUPLICATE KEY UPDATE يشتغل:
-
+8.5 Make name UNIQUE (IMPORTANT for UPSERT)
 ALTER TABLE sensors
 ADD UNIQUE KEY uniq_name (name);
-F) إضافة أسماء الحساسات الرسمية (Recommended)
+8.6 Insert official sensor names (recommended)
 INSERT INTO sensors (name, value, status) VALUES
 ('Gas Level','0','Normal'),
 ('Humidity','0','Normal'),
@@ -175,48 +236,46 @@ INSERT INTO sensors (name, value, status) VALUES
 ('Evidence Locker','Stored','Normal'),
 ('IR','0','Normal')
 ON DUPLICATE KEY UPDATE value=VALUES(value), status=VALUES(status);
-G) حذف الأسماء القديمة الصغيرة (تنظيف)
+8.7 Cleanup old lowercase duplicates (optional)
 
-إذا كان عندك:
-temperature / humidity / gas
-احذفيهم:
+If you had old rows like gas, humidity, temperature:
 
 DELETE FROM sensors WHERE name IN ('temperature','humidity','gas');
-5) Website (Frontend)
+9) 🔌 API Endpoints (Backend)
+9.1 Ping
 
-افتحي الموقع من السيرفر:
+GET /ping → pong
 
-Login: http://localhost:3000
+Example:
 
-Admin Dashboard: http://localhost:3000/cfl-eye-dashboard.html
+http://localhost:3000/ping
 
-User Dashboard: http://localhost:3000/dashboard.html
-
-Reports: http://localhost:3000/reports.html
-
-API:
-
-http://localhost:3000/api/sensors
-
-6) Backend API Endpoints (النهائية)
-Ping (اختبار اتصال)
-
-GET /ping → يرجّع pong
-
-Login
+9.2 Login
 
 POST /api/auth/login
+
 Body:
 
 {"username":"admin","password":"1234"}
-Read Sensors
+
+Response:
+
+{"success":true,"role":"admin"}
+9.3 Read sensors (Dashboard)
 
 GET /api/sensors
 
-Ingest from ESP32
+Returns:
+
+[
+  {"name":"Gas Level","value":"777","status":"Warning"},
+  {"name":"Temperature","value":"26","status":"Normal"}
+]
+9.4 Ingest from ESP32
 
 POST /api/ingest
-Body مثال:
+
+Body example:
 
 {
   "gas":777,
@@ -227,69 +286,53 @@ Body مثال:
   "locker":"Stored",
   "ir":0
 }
-7) مشكلة الشبكة اللي واجهتنا + الحل
-المشكلة
 
-ESP32 والموبايل ما كانوا يقدروا يوصلوا للابتوب عبر الراوتر:
+Response:
 
-ESP32 GET code = -1
+{"ok":true}
+10) 🖥️ Frontend Setup (Website)
 
-TCP connect FAILED
+Files are served from /public via:
 
-الموبايل ERR_ADDRESS_UNREACHABLE
+app.use(express.static(path.join(__dirname, "public")));
 
-السبب غالبًا:
-✅ Router Isolation (Client/AP Isolation)
+Open:
 
-الحل المضمون
+http://localhost:3000 (Login)
 
-استخدمنا Windows Mobile Hotspot من اللابتوب.
+http://localhost:3000/cfl-eye-dashboard.html (Admin)
 
-IP الهوتسبوت
+http://localhost:3000/dashboard.html (User)
 
-من ipconfig ظهر:
+http://localhost:3000/reports.html (Reports)
 
-Laptop Hotspot IP = 192.168.137.1
+11) 🤖 ESP32 Setup (Arduino IDE) — From Scratch
+11.1 Install ESP32 Board Package
 
-إذن ESP32 لازم يرسل إلى:
+Arduino IDE → Preferences → Additional Boards Manager URLs
+Add ESP32 URL, then:
+Tools → Board → Boards Manager → install ESP32
 
-http://192.168.137.1:3000/api/ingest
+11.2 Install Libraries
 
-8) أوامر Windows اللي استخدمناها
-معرفة IP
-ipconfig
-فحص المنفذ 3000
-netstat -ano | findstr :3000
-فتح Port 3000 في Firewall (PowerShell Admin)
-netsh advfirewall firewall add rule name="Node Port 3000" dir=in action=allow protocol=TCP localport=3000
-9) ESP32 Tests اللي عملناها
-A) اختبار WiFi status
+Arduino IDE → Library Manager:
 
-Status 3 = Connected ✅
+DHT sensor library (Adafruit)
 
-Status 6 = Wrong password ❌
+Adafruit Unified Sensor
 
-B) اختبار GET /ping
+11.3 Driver / COM Port
 
-URL:
-http://192.168.137.1:3000/ping
+If COM port not detected:
 
-Expected:
-GET code: 200 + pong
+Install CP210x / CH340 driver (depends on board)
 
-C) اختبار POST /api/ingest
+12) 🔧 Wiring Guide (Typical Working Pins)
 
-URL:
-http://192.168.137.1:3000/api/ingest
+Your dashboard is already working with these sensor names in DB.
+Keep wiring consistent with ESP32 code.
 
-Expected:
-POST code: 200 + {ok:true}
-
-10) Wiring Notes (مهم جدًا)
-
-✅ كل LED لازم مقاومة 220Ω لحالها.
-
-مخطط pins (مثال شغال):
+Recommended pins:
 
 DHT11 DATA → GPIO33
 
@@ -297,75 +340,164 @@ Flame DO → GPIO32
 
 IR DO → GPIO12
 
-MQ-2 AO → GPIO34 (أفضل مع WiFi)
+MQ-2 AO → GPIO34 (IMPORTANT: ADC1 works with WiFi)
 
-Buzzer → GPIO25
+Buzzer → GPIO25 (optional)
 
-LEDs → Pins مختلفة
+LEDs on free GPIOs + each LED has 220Ω resistor
 
-11) Why MQ should be on GPIO34
+⚠️ MQ on ADC2 pins (like GPIO13) may fail when WiFi is enabled. Use GPIO34 instead.
 
-على ESP32:
+13) 🌐 Networking Problem + Hotspot Fix (What happened)
+Issue we faced
 
-ADC2 ممكن يتعطل مع WiFi
-فالأفضل MQ analog على ADC1:
+ESP32 could connect to WiFi, but could not reach laptop server:
 
-GPIO34/35/36/39
+GET code = -1
 
-12) Dashboard Improvements اللي سويناها
+TCP connect FAILED
+This happens when router blocks device-to-device communication (Client Isolation/AP Isolation).
 
-IR: 0/1 → Area Clear / INTRUSION
+Guaranteed solution used
 
-Fire: 1/0 → Safe / FIRE DETECTED
+✅ Windows Mobile Hotspot
 
-Units: °C / % / ppm
+Laptop becomes the “router” for ESP32
 
-System status يتغير حسب Warning/Alert
+Laptop hotspot IP becomes: 192.168.137.1
 
-13) How to verify everything is working
+Confirm hotspot IP
 
-شغّلي السيرفر:
+Command:
+
+ipconfig
+
+Look for:
+
+Local Area Connection* 10 (Mobile Hotspot)
+
+IPv4: 192.168.137.1
+
+ESP32 sends to:
+
+http://192.168.137.1:3000/ping
+
+http://192.168.137.1:3000/api/ingest
+
+14) 🧱 Windows Firewall (Port 3000)
+
+To allow inbound connections on port 3000:
+
+Run PowerShell as Administrator:
+
+netsh advfirewall firewall add rule name="Node Port 3000" dir=in action=allow protocol=TCP localport=3000
+
+Check listening port:
+
+netstat -ano | findstr :3000
+15) ✅ Validation & Testing Checklist
+Backend
+
+ node server.js runs
+
+ http://localhost:3000/ping returns pong
+
+ http://localhost:3000/api/sensors returns JSON
+
+Database
+
+ sensors table contains official names
+
+ name is UNIQUE
+
+ESP32
+
+ WiFi status = 3 (connected)
+
+ GET /ping returns 200 + pong
+
+ POST /api/ingest returns 200 + {ok:true}
+
+Dashboard
+
+ Values update every 5 seconds
+
+ Fire/IR show human friendly text
+
+ System status shows OK/WARNING/ALERT
+
+16) 🧯 Troubleshooting
+A) ESP32 POST code = -1
+
+Wrong server IP
+
+Router isolation
+✅ Use Hotspot (192.168.137.1)
+
+B) Server error: “Unknown column status”
+
+Add status column or update schema:
+
+ALTER TABLE sensors ADD COLUMN status VARCHAR(20) DEFAULT 'Normal';
+C) Upsert not working (duplicates)
+
+Ensure UNIQUE name:
+
+ALTER TABLE sensors ADD UNIQUE KEY uniq_name (name);
+D) Website shows same values always
+
+ESP32 still sending test payload
+
+ESP32 not reading real sensor pins
+
+MQ connected to wrong analog pin (ADC2 conflict)
+
+17) 🎤 Demo Script (Doctor Presentation)
+
+Run MySQL (XAMPP)
+
+Run server:
 
 node server.js
 
-افتحي:
-http://localhost:3000/api/sensors
+Open Admin dashboard:
 
-شغلي Hotspot + وصّلي ESP32 عليه
+http://localhost:3000/cfl-eye-dashboard.html
 
-شغّلي كود ESP32 (يبعث ingest)
+Turn on Hotspot → connect ESP32
 
-افتحي Admin Dashboard وشوفي القيم تتغير Live.
+Show live updates:
 
-14) نقل المشروع لجهاز ثاني (مختصر)
+Change gas/temperature/IR/flame and show changes + status
 
-انسخي مجلد المشروع كامل
+Export logs + show Reports page
 
-نزّلي Node.js + XAMPP + Arduino IDE
-
-npm install
-
-جهزي DB + جدول users + sensors
-
-شغلي node server.js
-
-إذا استخدمتي Hotspot على الجهاز الجديد:
-
-اعملي ipconfig وخذي IP الهوتسبوت
-
-عدّليه داخل ESP32 URL
-
-15) Summary of ALL commands
-Node:
+18) 📌 Commands Summary (ALL commands we used)
+Node / NPM
 npm install
 node server.js
-Network:
+Network
 ipconfig
 netstat -ano | findstr :3000
-Firewall:
+Firewall
 netsh advfirewall firewall add rule name="Node Port 3000" dir=in action=allow protocol=TCP localport=3000
-MySQL:
-ALTER TABLE sensors ADD COLUMN status VARCHAR(20) DEFAULT 'Normal';
+MySQL / phpMyAdmin
+CREATE DATABASE CFL_Eye;
+
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50),
+  password VARCHAR(50),
+  role VARCHAR(20)
+);
+
+CREATE TABLE IF NOT EXISTS sensors (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(50),
+  value VARCHAR(50),
+  status VARCHAR(20) DEFAULT 'Normal'
+);
+
 ALTER TABLE sensors ADD UNIQUE KEY uniq_name (name);
 
 INSERT INTO sensors (name, value, status) VALUES
