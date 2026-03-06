@@ -1,291 +1,381 @@
-## 1) الملفات التي يجب نسخها
+0) Project Overview (كيف النظام شغال)
 
-انسخي **مجلد المشروع كامل** كما هو، ويحتوي على:
+Sensors → ESP32 → Backend API → MySQL → Website Dashboard (Live)
 
-* `server.js`
-* `package.json`
-* `package-lock.json`
-* مجلد `public/` وفيه:
+ESP32 يقرأ:
 
-  * `index.html`
-  * `admin.html`
-  * `dashboard.html`
-  * `cfl-eye-dashboard.html`
-  * `reports.html`
-  * `style.css`
-  * `script.js`
+DHT11 (Temperature / Humidity)
 
-هذا التقسيم متوافق مع اعتماد السيرفر على Express وخدمة ملفات الواجهة من مجلد `public`، ومع وجود ملف السيرفر وملفات الحزم في جذر المشروع.  
+MQ-2 (Gas Analog)
 
----
+Flame Sensor (Digital)
 
-## 2) البرامج التي يجب تثبيتها على الجهاز الجديد
+IR Sensor (Digital)
 
-### أ) Node.js
+ESP32 يرسل القراءات إلى السيرفر:
 
-لازم يكون مثبت **Node.js** لأن المشروع يعتمد على:
+POST /api/ingest
 
-* `express`
-* `mysql2`
-* `cors`
-* `body-parser`
+السيرفر يخزّن/يحدّث القراءات في MySQL داخل جدول:
 
-وهذه الحزم موجودة داخل `package.json`. 
+sensors
 
-يفضل تثبيت **Node.js LTS**.
+الموقع يسحب البيانات من:
 
-بعد التثبيت، افتحي Terminal واكتبي:
+GET /api/sensors
+ويعرضها مباشرة بالداشبورد (كل 5 ثواني).
 
-```bash
+1) Project Folder Structure (ترتيب الملفات النهائي)
+
+لازم هيك:
+
+project-folder/
+│
+├── server.js
+├── package.json
+├── package-lock.json
+│
+├── public/
+│   ├── index.html
+│   ├── admin.html
+│   ├── dashboard.html
+│   ├── cfl-eye-dashboard.html
+│   ├── reports.html
+│   ├── style.css
+│   └── script.js
+│
+└── (اختياري: مجلدات الاختبار)
+    ├── test_leds/
+    ├── test_buzzer/
+    └── testing_esp32/
+
+✅ مهم: لا تفتحي HTML من الملفات مباشرة (file://)
+افتحي دومًا من السيرفر:
+
+http://localhost:3000
+
+2) البرامج المطلوبة على اللابتوب
+A) Node.js
+
+تثبيت Node.js (يفضل LTS)
+تحقق:
+
 node -v
 npm -v
-```
+B) MySQL (XAMPP)
 
----
+تثبيت XAMPP وتشغيل:
 
-### ب) MySQL أو XAMPP
+Apache
 
-لازم يكون موجود **MySQL Server** أو **XAMPP** مع MySQL، لأن السيرفر يتصل بقاعدة بيانات اسمها:
+MySQL
 
-```text
+فتح phpMyAdmin:
+
+http://localhost/phpmyadmin
+
+C) Arduino IDE + ESP32
+
+Arduino IDE
+
+ESP32 Board Package
+
+Driver للـ ESP32 (CP210x أو CH340)
+
+3) Backend Setup (Node.js + Express)
+تثبيت الحزم
+
+داخل مجلد المشروع:
+
+npm install
+
+إذا بدأتي من الصفر:
+
+npm init -y
+npm install express mysql2 cors
+تشغيل السيرفر
+node server.js
+
+لازم يطلع:
+
+✅ Connected to MySQL DB
+
+🚀 Server running on http://localhost:3000
+
+4) Database Setup (MySQL / phpMyAdmin)
+A) اسم قاعدة البيانات
+
 CFL_Eye
-```
 
-وبيانات الاتصال الحالية في `server.js` هي:
+B) جدول users (للـ Login)
 
-* host: `localhost`
-* user: `root`
-* password: `m7moud13579`
-* database: `CFL_Eye` 
+السيرفر يستخدم:
 
-إذا على الجهاز الجديد كلمة سر root مختلفة، لازم تعدليها داخل `server.js`.
+SELECT role FROM users WHERE username=? AND password=? LIMIT 1
 
----
+مثال إنشاء:
 
-### ج) Arduino IDE
-
-لازم تثبتي **Arduino IDE** لأن كود الـ ESP32 يترفع منه.
-
----
-
-### د) تعريف ESP32 على Arduino IDE
-
-لازم يكون مثبت **ESP32 Board Package** داخل Arduino IDE، لأن المشروع يعتمد على لوحة ESP32.
-
----
-
-### هـ) Driver لوحة ESP32
-
-حسب نوع اللوحة، لازم يكون مثبت Driver مثل:
-
-* **CP210x**
-  أو
-* **CH340**
-
-إذا الجهاز الجديد ما تعرف على منفذ الـ COM، فالمشكلة غالبًا من الـ Driver.
-
----
-
-## 3) المكتبات المطلوبة في Arduino IDE
-
-على الجهاز الجديد، لازم تثبتي نفس المكتبات التي استخدمتيها مع الحساسات:
-
-* **DHT sensor library**
-* **Adafruit Unified Sensor**
-
-وإذا عندك كود ESP32 يستخدم:
-
-* `WiFi.h`
-* `HTTPClient.h`
-
-فهذه غالبًا تأتي مع ESP32 package نفسها.
-
----
-
-## 4) إعداد قاعدة البيانات
-
-على الجهاز الجديد لازم تعملي:
-
-### أ) إنشاء قاعدة البيانات:
-
-```sql
-CREATE DATABASE CFL_Eye;
-```
-
-### ب) إنشاء الجداول التي يعتمد عليها المشروع
-
-#### جدول users
-
-لأن عندك Login API يفحص:
-
-```sql
-SELECT * FROM users WHERE username=? AND password=?
-```
-
-فلازم يكون موجود جدول `users`. 
-
-مثال بسيط:
-
-```sql
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(50),
   password VARCHAR(50),
   role VARCHAR(20)
 );
-```
 
-وأضيفي مستخدمين مثل:
+إضافة مستخدمين:
 
-```sql
 INSERT INTO users (username, password, role) VALUES
 ('admin', '1234', 'admin'),
-('user', '1234', 'user');
-```
+('user',  '1234', 'user');
+C) جدول sensors (للقيم)
 
-#### جدول sensors
+المطلوب أعمدة:
 
-لأن الواجهة والسيرفر يقرؤون من:
+id
 
-```sql
-SELECT name, value FROM sensors
-```
+name
 
-فلازم يكون موجود جدول `sensors`. 
+value
+
+status
 
 مثال:
 
-```sql
-CREATE TABLE sensors (
-  name VARCHAR(50) PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS sensors (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(50),
   value VARCHAR(50),
-  status VARCHAR(20),
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  status VARCHAR(20) DEFAULT 'Normal'
 );
-```
+D) إضافة عمود status (إذا ناقص)
 
-وأضيفي قيماً أولية:
+phpMyAdmin → sensors → SQL:
 
-```sql
+ALTER TABLE sensors
+ADD COLUMN status VARCHAR(20) DEFAULT 'Normal';
+
+إذا ظهر:
+
+Duplicate column name 'status'
+يعني موجود ✅
+
+E) جعل name UNIQUE (مهم جدًا)
+
+عشان ON DUPLICATE KEY UPDATE يشتغل:
+
+ALTER TABLE sensors
+ADD UNIQUE KEY uniq_name (name);
+F) إضافة أسماء الحساسات الرسمية (Recommended)
 INSERT INTO sensors (name, value, status) VALUES
-('Fire Sensor', '0', 'Normal'),
-('Humidity', '0', 'Normal'),
-('Temperature', '0', 'Normal'),
-('Gas Level', '0', 'Normal'),
-('Lab Door', '0', 'Normal'),
-('Evidence Locker', '0', 'Normal');
-```
+('Gas Level','0','Normal'),
+('Humidity','0','Normal'),
+('Temperature','0','Normal'),
+('Fire Sensor','1','Normal'),
+('Lab Door','Closed','Normal'),
+('Evidence Locker','Stored','Normal'),
+('IR','0','Normal')
+ON DUPLICATE KEY UPDATE value=VALUES(value), status=VALUES(status);
+G) حذف الأسماء القديمة الصغيرة (تنظيف)
 
----
+إذا كان عندك:
+temperature / humidity / gas
+احذفيهم:
 
-## 5) تثبيت حزم المشروع
+DELETE FROM sensors WHERE name IN ('temperature','humidity','gas');
+5) Website (Frontend)
 
-بعد نقل الملفات إلى الجهاز الجديد، افتحي Terminal داخل مجلد المشروع وشغلي:
+افتحي الموقع من السيرفر:
 
-```bash
-npm install
-```
+Login: http://localhost:3000
 
-هذا سيثبت الحزم الموجودة في `package.json`:
+Admin Dashboard: http://localhost:3000/cfl-eye-dashboard.html
 
-* express
-* mysql2
-* cors
-* body-parser 
+User Dashboard: http://localhost:3000/dashboard.html
 
----
+Reports: http://localhost:3000/reports.html
 
-## 6) تشغيل السيرفر
+API:
 
-بعد تثبيت الحزم:
+http://localhost:3000/api/sensors
 
-```bash
-node server.js
-```
+6) Backend API Endpoints (النهائية)
+Ping (اختبار اتصال)
 
-إذا كل شيء صحيح، المفروض يظهر:
+GET /ping → يرجّع pong
 
-* اتصال ناجح مع MySQL
-* تشغيل السيرفر على:
+Login
 
-```text
-http://localhost:3000
-```
+POST /api/auth/login
+Body:
 
-وهذا يتوافق مع إعدادات `server.js` الحالية. 
+{"username":"admin","password":"1234"}
+Read Sensors
 
----
+GET /api/sensors
 
-## 7) تشغيل الموقع
+Ingest from ESP32
 
-لا تفتحي ملفات HTML مباشرة من الملفات.
+POST /api/ingest
+Body مثال:
 
-الطريقة الصحيحة:
+{
+  "gas":777,
+  "humidity":60,
+  "temperature":26,
+  "fire":1,
+  "door":"Closed",
+  "locker":"Stored",
+  "ir":0
+}
+7) مشكلة الشبكة اللي واجهتنا + الحل
+المشكلة
 
-```text
-http://localhost:3000
-```
+ESP32 والموبايل ما كانوا يقدروا يوصلوا للابتوب عبر الراوتر:
 
-لأن صفحاتك تعتمد على `fetch` إلى:
+ESP32 GET code = -1
 
-* `/api/auth/login`
-* `/api/sensors`
+TCP connect FAILED
 
-وهي موجودة في `script.js` وفي صفحات الداشبورد.
+الموبايل ERR_ADDRESS_UNREACHABLE
 
----
+السبب غالبًا:
+✅ Router Isolation (Client/AP Isolation)
 
-## 8) إذا بدك ربط ESP32 مع الجهاز الجديد
+الحل المضمون
 
-إذا الهدف ليس فقط نقل الموقع بل أيضًا تشغيل الحساسات من خلال الجهاز الجديد، لازم:
+استخدمنا Windows Mobile Hotspot من اللابتوب.
 
-### أ) تعرفي IP الجهاز الجديد
+IP الهوتسبوت
 
-من CMD:
+من ipconfig ظهر:
 
-```bash
+Laptop Hotspot IP = 192.168.137.1
+
+إذن ESP32 لازم يرسل إلى:
+
+http://192.168.137.1:3000/api/ingest
+
+8) أوامر Windows اللي استخدمناها
+معرفة IP
 ipconfig
-```
+فحص المنفذ 3000
+netstat -ano | findstr :3000
+فتح Port 3000 في Firewall (PowerShell Admin)
+netsh advfirewall firewall add rule name="Node Port 3000" dir=in action=allow protocol=TCP localport=3000
+9) ESP32 Tests اللي عملناها
+A) اختبار WiFi status
 
-وخذي:
+Status 3 = Connected ✅
 
-```text
-IPv4 Address
-```
+Status 6 = Wrong password ❌
 
-### ب) تعدلي كود ESP32
+B) اختبار GET /ping
 
-بدل IP القديم، تحطي IP الجهاز الجديد داخل رابط السيرفر، مثل:
+URL:
+http://192.168.137.1:3000/ping
 
-```cpp
-http://192.168.x.x:3000/api/ingest
-```
+Expected:
+GET code: 200 + pong
 
-### ج) تتأكدي أن:
+C) اختبار POST /api/ingest
 
-* اللابتوب وESP32 على نفس شبكة Wi-Fi
-* MQ sensor موصول على pin مناسب للـ ADC إذا كنت تستخدمين WiFi مع ESP32
+URL:
+http://192.168.137.1:3000/api/ingest
 
----
+Expected:
+POST code: 200 + {ok:true}
 
-## 9) قائمة فحص سريعة قبل التشغيل
+10) Wiring Notes (مهم جدًا)
 
-على الجهاز الجديد لازم يكون موجود:
+✅ كل LED لازم مقاومة 220Ω لحالها.
 
-* [ ] مجلد المشروع كامل
-* [ ] Node.js
-* [ ] npm
-* [ ] MySQL أو XAMPP
-* [ ] قاعدة بيانات `CFL_Eye`
-* [ ] جدول `users`
-* [ ] جدول `sensors`
-* [ ] Arduino IDE
-* [ ] ESP32 board package
-* [ ] ESP32 USB driver
-* [ ] مكتبات DHT
-* [ ] تشغيل `npm install`
-* [ ] تشغيل `node server.js`
+مخطط pins (مثال شغال):
 
----
+DHT11 DATA → GPIO33
 
+Flame DO → GPIO32
 
+IR DO → GPIO12
+
+MQ-2 AO → GPIO34 (أفضل مع WiFi)
+
+Buzzer → GPIO25
+
+LEDs → Pins مختلفة
+
+11) Why MQ should be on GPIO34
+
+على ESP32:
+
+ADC2 ممكن يتعطل مع WiFi
+فالأفضل MQ analog على ADC1:
+
+GPIO34/35/36/39
+
+12) Dashboard Improvements اللي سويناها
+
+IR: 0/1 → Area Clear / INTRUSION
+
+Fire: 1/0 → Safe / FIRE DETECTED
+
+Units: °C / % / ppm
+
+System status يتغير حسب Warning/Alert
+
+13) How to verify everything is working
+
+شغّلي السيرفر:
+
+node server.js
+
+افتحي:
+http://localhost:3000/api/sensors
+
+شغلي Hotspot + وصّلي ESP32 عليه
+
+شغّلي كود ESP32 (يبعث ingest)
+
+افتحي Admin Dashboard وشوفي القيم تتغير Live.
+
+14) نقل المشروع لجهاز ثاني (مختصر)
+
+انسخي مجلد المشروع كامل
+
+نزّلي Node.js + XAMPP + Arduino IDE
+
+npm install
+
+جهزي DB + جدول users + sensors
+
+شغلي node server.js
+
+إذا استخدمتي Hotspot على الجهاز الجديد:
+
+اعملي ipconfig وخذي IP الهوتسبوت
+
+عدّليه داخل ESP32 URL
+
+15) Summary of ALL commands
+Node:
+npm install
+node server.js
+Network:
+ipconfig
+netstat -ano | findstr :3000
+Firewall:
+netsh advfirewall firewall add rule name="Node Port 3000" dir=in action=allow protocol=TCP localport=3000
+MySQL:
+ALTER TABLE sensors ADD COLUMN status VARCHAR(20) DEFAULT 'Normal';
+ALTER TABLE sensors ADD UNIQUE KEY uniq_name (name);
+
+INSERT INTO sensors (name, value, status) VALUES
+('Gas Level','0','Normal'),
+('Humidity','0','Normal'),
+('Temperature','0','Normal'),
+('Fire Sensor','1','Normal'),
+('Lab Door','Closed','Normal'),
+('Evidence Locker','Stored','Normal'),
+('IR','0','Normal')
+ON DUPLICATE KEY UPDATE value=VALUES(value), status=VALUES(status);
+
+DELETE FROM sensors WHERE name IN ('temperature','humidity','gas');
