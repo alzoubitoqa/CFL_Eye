@@ -26,37 +26,44 @@
   <div style="padding:0 30px 20px; display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px;">
     <div class="sensor" id="humidity">
       <div style="color:#90e0ef; font-size:18px;">Humidity</div>
-      <div><span id="humVal">0</span></div>
+      <div><span id="humVal">--</span></div>
       <div class="status-normal">Normal</div>
     </div>
 
     <div class="sensor" id="temp">
       <div style="color:#90e0ef; font-size:18px;">Temperature</div>
-      <div><span id="tempVal">0</span></div>
+      <div><span id="tempVal">--</span></div>
       <div class="status-normal">Normal</div>
     </div>
 
     <div class="sensor" id="gas">
       <div style="color:#90e0ef; font-size:18px;">Gas Level</div>
-      <div><span id="gasVal">0</span></div>
+      <div><span id="gasVal">--</span></div>
       <div class="status-normal">Normal</div>
     </div>
 
     <div class="sensor" id="fire">
       <div style="color:#90e0ef; font-size:18px;">Fire Sensor</div>
-      <div><span id="fireVal">0</span></div>
+      <div><span id="fireVal">--</span></div>
       <div class="status-normal">Normal</div>
     </div>
 
     <div class="sensor" id="door">
       <div style="color:#90e0ef; font-size:18px;">Lab Door</div>
-      <div><span id="doorVal">0</span></div>
+      <div><span id="doorVal">--</span></div>
       <div class="status-normal">Normal</div>
     </div>
 
     <div class="sensor" id="locker">
       <div style="color:#90e0ef; font-size:18px;">Evidence Locker</div>
-      <div><span id="lockerVal">0</span></div>
+      <div><span id="lockerVal">--</span></div>
+      <div class="status-normal">Normal</div>
+    </div>
+
+    <!-- ✅ IR Card -->
+    <div class="sensor" id="ir">
+      <div style="color:#90e0ef; font-size:18px;">IR</div>
+      <div><span id="irVal">--</span></div>
       <div class="status-normal">Normal</div>
     </div>
   </div>
@@ -73,16 +80,6 @@
       const logContainer = document.getElementById("logContainer");
       const systemStatus = document.getElementById("systemStatus");
 
-      const TH = { gasWarning: 500, gasAlert: 800, tempWarning: 35, tempAlert: 50 };
-
-      function normalizeName(name) {
-        const n = (name || "").toLowerCase().trim();
-        if (n === "gas") return "Gas Level";
-        if (n === "temperature") return "Temperature";
-        if (n === "humidity") return "Humidity";
-        return name || "Unknown";
-      }
-
       function addLog(message, type = "info") {
         if (!logContainer) return;
         const entry = document.createElement("div");
@@ -93,32 +90,49 @@
 
       function setSystemStatus(level) {
         if (!systemStatus) return;
-        if (level === "OK") { systemStatus.textContent = "System: OK"; systemStatus.style.color = "#06d6a0"; }
-        else if (level === "WARNING") { systemStatus.textContent = "System: WARNING"; systemStatus.style.color = "#ffd166"; }
-        else { systemStatus.textContent = "System: ALERT"; systemStatus.style.color = "#ef476f"; }
+        if (level === "OK") {
+          systemStatus.textContent = "System: OK";
+          systemStatus.style.color = "#06d6a0";
+        } else if (level === "WARNING") {
+          systemStatus.textContent = "System: WARNING";
+          systemStatus.style.color = "#ffd166";
+        } else {
+          systemStatus.textContent = "System: ALERT";
+          systemStatus.style.color = "#ef476f";
+        }
       }
 
-      function computeStatus(rawName, value) {
-        const name = normalizeName(rawName);
-        const v = (value ?? "").toString().trim();
+      function normalizeName(name) {
+        const n = (name || "").toLowerCase().trim();
+        if (n === "gas") return "Gas Level";
+        if (n === "temperature") return "Temperature";
+        if (n === "humidity") return "Humidity";
+        if (n === "fire" || n === "flame") return "Fire Sensor";
+        if (n === "door") return "Lab Door";
+        if (n === "locker") return "Evidence Locker";
+        if (n === "ir" || n === "motion") return "IR";
+        return name || "Unknown";
+      }
 
-        if (name === "Gas Level") {
-          const n = Number(v);
-          if (isNaN(n)) return "Normal";
-          if (n >= TH.gasAlert) return "Alert";
-          if (n >= TH.gasWarning) return "Warning";
-          return "Normal";
+      function formatValue(name, value) {
+        const v = String(value ?? "");
+
+        if (name === "Fire Sensor") return (v === "0") ? "FIRE DETECTED 🔥" : "Safe ✅";
+        if (name === "IR") return (v === "1") ? "INTRUSION 🚨" : "Area Clear ✅";
+
+        if (name === "Lab Door") {
+          return (v === "1" || v.toLowerCase() === "open") ? "Open" : "Closed";
         }
 
-        if (name === "Temperature") {
-          const n = Number(v);
-          if (isNaN(n)) return "Normal";
-          if (n >= TH.tempAlert) return "Alert";
-          if (n >= TH.tempWarning) return "Warning";
-          return "Normal";
+        if (name === "Evidence Locker") {
+          return (v === "1" || v.toLowerCase() === "open") ? "Open" : "Stored";
         }
 
-        return "Normal";
+        if (name === "Temperature") return `${v} °C`;
+        if (name === "Humidity") return `${v} %`;
+        if (name === "Gas Level") return `${v} ppm`;
+
+        return v;
       }
 
       function updateCard(cardId, valId, newValue, statusText) {
@@ -144,23 +158,30 @@
         fetch(`${window.location.origin}/api/sensors`)
           .then(res => res.json())
           .then(data => {
-            let systemLevel = "OK";
+            const sensors = data || [];
 
-            (data || []).forEach(sensor => {
+            // ✅ System level from DB statuses
+            const hasAlert = sensors.some(s => String(s.status) === "Alert");
+            const hasWarning = sensors.some(s => String(s.status) === "Warning");
+
+            if (hasAlert) setSystemStatus("ALERT");
+            else if (hasWarning) setSystemStatus("WARNING");
+            else setSystemStatus("OK");
+
+            sensors.forEach(sensor => {
               const name = normalizeName(sensor.name);
-              const value = sensor.value;
+              const rawValue = sensor.value;
+              const status = sensor.status || "Normal";
 
-              const status = computeStatus(name, value);
+              if (name === "Humidity") updateCard("humidity", "humVal", formatValue(name, rawValue), status);
+              if (name === "Temperature") updateCard("temp", "tempVal", formatValue(name, rawValue), status);
+              if (name === "Gas Level") updateCard("gas", "gasVal", formatValue(name, rawValue), status);
 
-              if (status === "Alert") systemLevel = "ALERT";
-              else if (status === "Warning" && systemLevel !== "ALERT") systemLevel = "WARNING";
-
-              if (name === "Humidity") updateCard("humidity", "humVal", value, status);
-              if (name === "Temperature") updateCard("temp", "tempVal", value, status);
-              if (name === "Gas Level") updateCard("gas", "gasVal", value, status);
+              if (name === "Fire Sensor") updateCard("fire", "fireVal", formatValue(name, rawValue), status);
+              if (name === "Lab Door") updateCard("door", "doorVal", formatValue(name, rawValue), status);
+              if (name === "Evidence Locker") updateCard("locker", "lockerVal", formatValue(name, rawValue), status);
+              if (name === "IR") updateCard("ir", "irVal", formatValue(name, rawValue), status);
             });
-
-            setSystemStatus(systemLevel);
           })
           .catch(err => {
             console.error(err);
@@ -169,8 +190,16 @@
           });
       }
 
-      document.getElementById("pauseBtn").onclick = () => { paused = !paused; addLog(paused ? "⏸ Updates paused" : "▶ Updates resumed"); };
-      document.getElementById("alertBtn").onclick = () => { addLog("🚨 Manual test alert triggered!", "alert"); setSystemStatus("ALERT"); };
+      document.getElementById("pauseBtn").onclick = () => {
+        paused = !paused;
+        addLog(paused ? "⏸ Updates paused" : "▶ Updates resumed");
+      };
+
+      document.getElementById("alertBtn").onclick = () => {
+        addLog("🚨 Manual test alert triggered!", "alert");
+        setSystemStatus("ALERT");
+      };
+
       document.getElementById("exportBtn").onclick = () => {
         const data = Array.from(document.querySelectorAll(".log-entry")).map(e => e.textContent);
         const blob = new Blob([data.join("\n")], { type: "text/plain" });
@@ -179,6 +208,7 @@
         a.download = "CFL-Eye_Logs.txt";
         a.click();
       };
+
       document.getElementById("reportBtn").onclick = () => (window.location.href = "reports.html");
       document.getElementById("logoutBtn").onclick = () => (window.location.href = "index.html");
 
@@ -189,3 +219,12 @@
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
